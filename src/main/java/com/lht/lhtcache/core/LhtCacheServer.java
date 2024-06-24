@@ -1,5 +1,6 @@
-package com.lht.lhtcache;
+package com.lht.lhtcache.core;
 
+import com.lht.lhtcache.LhtPlugin;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
@@ -10,8 +11,6 @@ import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.redis.RedisDecoder;
-import io.netty.handler.codec.redis.RedisEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -22,7 +21,7 @@ import org.springframework.stereotype.Component;
  * @date 2024/06/21
  */
 @Component
-public class LhtCacheServer implements LhtPlugin{
+public class LhtCacheServer implements LhtPlugin {
 
 
     int port = 6379;

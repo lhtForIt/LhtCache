@@ -1,4 +1,4 @@
-package com.lht.lhtcache;
+package com.lht.lhtcache.core;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
