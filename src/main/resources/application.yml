@@ -1,0 +1,6 @@
+spring:
+    application:
+        name: lhtcache
+
+server:
+    port: 6379
