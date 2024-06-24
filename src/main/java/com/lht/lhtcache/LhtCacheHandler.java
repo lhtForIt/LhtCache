@@ -1,34 +1,61 @@
 package com.lht.lhtcache;
 
-import io.netty.channel.ChannelHandler;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.redis.ArrayHeaderRedisMessage;
-import io.netty.handler.codec.redis.BulkStringHeaderRedisMessage;
-import io.netty.handler.codec.redis.DefaultBulkStringRedisContent;
-import io.netty.handler.codec.redis.RedisMessage;
-import io.netty.util.concurrent.EventExecutorGroup;
 
 /**
  * @author Leo
  * @date 2024/06/21
  */
-public class LhtCacheHandler extends SimpleChannelInboundHandler<RedisMessage> {
+public class LhtCacheHandler extends SimpleChannelInboundHandler<String> {
+
+    public static final String CRLF = "\r\n";
+    public static final String STR_PREFIX = "+";
+    public static final String OK = "OK";
+    public static final String INFO = "LhtCache server[v1.0.0],create by Leo." + CRLF;
+
     @Override
-    protected void channelRead0(ChannelHandlerContext channelHandlerContext, RedisMessage msg) throws Exception {
-        if (msg instanceof ArrayHeaderRedisMessage m) {
-            System.out.println("1 => "+m.length());
+    protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
+        String[] args = msg.split(CRLF);
+        System.out.println("LhtCacheHandler => " + String.join(",", args));
+        String cmd=args[2].toUpperCase();
+
+        if ("COMMAND".equals(cmd)) {
+            writeByteBuf(ctx, "*2"
+                    + CRLF + "$7"
+                    + CRLF + "COMMAND"
+                    + CRLF + "$4"
+                    + CRLF + "PING"
+                    + CRLF);
+        } else if ("PING".equals(cmd)) {
+            String ret = "PONG";
+            if (args.length >= 5) {
+                ret = args[4];
+            }
+            simpleString(ctx, ret);
+        } else if ("INFO".equals(cmd)) {
+            bulkString(ctx,  INFO);
+        } else {
+            simpleString(ctx, OK);
         }
 
-        if (msg instanceof BulkStringHeaderRedisMessage m) {
-            System.out.println("2 => "+m.bulkStringLength());
-        }
-
-        if (msg instanceof DefaultBulkStringRedisContent m) {
-            int count = m.content().readableBytes();
-            byte[] bytes=new byte[count];
-            m.content().readBytes(bytes);
-            System.out.println("3 => " + new String(bytes));
-        }
     }
+
+    private void simpleString(ChannelHandlerContext ctx, String content) {
+        writeByteBuf(ctx, STR_PREFIX + content + CRLF);
+    }
+
+    private void bulkString(ChannelHandlerContext ctx, String content) {
+        writeByteBuf(ctx, "$" + content.getBytes().length + CRLF + content + CRLF);
+    }
+
+    private void writeByteBuf(ChannelHandlerContext ctx, String content) {
+        System.out.println("wrap byte buffer and reply:" + content);
+        ByteBuf buffer = Unpooled.buffer(128);
+        buffer.writeBytes(content.getBytes());
+        ctx.writeAndFlush(buffer);
+    }
+
 }
