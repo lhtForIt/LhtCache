@@ -4,11 +4,13 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * @author Leo
  * @date 2024/06/21
  */
+@Slf4j
 public class LhtCacheHandler extends SimpleChannelInboundHandler<String> {
 
     public static final String CRLF = "\r\n";
@@ -26,81 +28,114 @@ public class LhtCacheHandler extends SimpleChannelInboundHandler<String> {
         System.out.println("LhtCacheHandler => " + String.join(",", args));
         String cmd=args[2].toUpperCase();
 
-        if ("COMMAND".equals(cmd)) {
-            writeByteBuf(ctx, "*2"
-                    + CRLF + "$7"
-                    + CRLF + "COMMAND"
-                    + CRLF + "$4"
-                    + CRLF + "PING"
-                    + CRLF);
-        } else if ("PING".equals(cmd)) {
-            String ret = "PONG";
-            if (args.length >= 5) {
-                ret = args[4];
-            }
-            simpleString(ctx, ret);
-        } else if ("INFO".equals(cmd)) {
-            bulkString(ctx,  INFO);
-        } else if ("SET".equals(cmd)) {
-            CACHE.set(args[4], args[6]);
-            simpleString(ctx, OK);
-        } else if ("GET".equals(cmd)) {
-            String val = CACHE.get(args[4]);
-            bulkString(ctx, val);
-        } else if ("STRLEN".equals(cmd)) {
-            String val = CACHE.get(args[4]);
-            integer(ctx, val == null ? 0 : val.length());
-        } else if ("DEL".equals(cmd)) {
-            int len = (args.length - 3) / 2;
-            String[] keys = new String[len];
-            for (int i = 0; i < len; i++) {
-                keys[i] = args[4 + i * 2];
-            }
-            int del = CACHE.del(keys);
-            integer(ctx, del);
-        } else if ("EXISTS".equals(cmd)) {
-            int len = (args.length - 3) / 2;
-            String[] keys = new String[len];
-            for (int i = 0; i < len; i++) {
-                keys[i] = args[4 + i * 2];
-            }
-            int exists = CACHE.exists(args[4]);
-            integer(ctx, exists);
-        } else if ("MGET".equals(cmd)) {
-            int len = (args.length - 3) / 2;
-            String[] keys = new String[len];
-            for (int i = 0; i < len; i++) {
-                keys[i] = args[4 + i * 2];
-            }
-            array(ctx,CACHE.mGet(keys));
-        } else if ("MSET".equals(cmd)) {
-            int len = (args.length - 3) / 4;
-            String[] keys = new String[len];
-            String[] values = new String[len];
-            for (int i = 0; i < len; i++) {
-                keys[i]=args[4 + i * 4];
-                values[i]=args[6 + i * 4];
-            }
-            CACHE.mSet(keys,values);
-            simpleString(ctx, OK);
-        } else if ("INCR".equals(cmd)) {
-            String key = args[4];
-            try {
-                integer(ctx, CACHE.incr(key));
-            } catch (NumberFormatException nfe) {
-                error(ctx, "NFE" + key + " value["+CACHE.get(key)+"] is not an integer.");
-            }
-        } else if ("DECR".equals(cmd)) {
-            String key = args[4];
-            try {
-                integer(ctx, CACHE.decr(key));
-            } catch (NumberFormatException nfe) {
-                error(ctx, "NFE" + key + " value["+CACHE.get(key)+"] is not an integer.");
-            }
-        } else {
-            simpleString(ctx, OK);
+        Command command = Commands.get(cmd);
+        if (command != null) {
+            Reply<?> reply = command.exec(CACHE, args);
+            log.info("CMD[" + cmd + "] => " + reply.type + " => " + reply.value);
+            replyContext(ctx, reply);
+        }else {
+            Reply<String> error = Reply.error("ERR unsupported command '" + cmd + "'");
+            replyContext(ctx, error);
         }
 
+//        if ("COMMAND".equals(cmd)) {
+//            writeByteBuf(ctx, "*2"
+//                    + CRLF + "$7"
+//                    + CRLF + "COMMAND"
+//                    + CRLF + "$4"
+//                    + CRLF + "PING"
+//                    + CRLF);
+//        } else if ("PING".equals(cmd)) {
+//            String ret = "PONG";
+//            if (args.length >= 5) {
+//                ret = args[4];
+//            }
+//            simpleString(ctx, ret);
+//        } else if ("INFO".equals(cmd)) {
+//            bulkString(ctx,  INFO);
+//        } else if ("SET".equals(cmd)) {
+//            CACHE.set(args[4], args[6]);
+//            simpleString(ctx, OK);
+//        } else if ("GET".equals(cmd)) {
+//            String val = CACHE.get(args[4]);
+//            bulkString(ctx, val);
+//        } else if ("STRLEN".equals(cmd)) {
+//            String val = CACHE.get(args[4]);
+//            integer(ctx, val == null ? 0 : val.length());
+//        } else if ("DEL".equals(cmd)) {
+//            int len = (args.length - 3) / 2;
+//            String[] keys = new String[len];
+//            for (int i = 0; i < len; i++) {
+//                keys[i] = args[4 + i * 2];
+//            }
+//            int del = CACHE.del(keys);
+//            integer(ctx, del);
+//        } else if ("EXISTS".equals(cmd)) {
+//            int len = (args.length - 3) / 2;
+//            String[] keys = new String[len];
+//            for (int i = 0; i < len; i++) {
+//                keys[i] = args[4 + i * 2];
+//            }
+//            int exists = CACHE.exists(keys);
+//            integer(ctx, exists);
+//        } else if ("MGET".equals(cmd)) {
+//            int len = (args.length - 3) / 2;
+//            String[] keys = new String[len];
+//            for (int i = 0; i < len; i++) {
+//                keys[i] = args[4 + i * 2];
+//            }
+//            array(ctx,CACHE.mGet(keys));
+//        } else if ("MSET".equals(cmd)) {
+//            int len = (args.length - 3) / 4;
+//            String[] keys = new String[len];
+//            String[] values = new String[len];
+//            for (int i = 0; i < len; i++) {
+//                keys[i]=args[4 + i * 4];
+//                values[i]=args[6 + i * 4];
+//            }
+//            CACHE.mSet(keys,values);
+//            simpleString(ctx, OK);
+//        } else if ("INCR".equals(cmd)) {
+//            String key = args[4];
+//            try {
+//                integer(ctx, CACHE.incr(key));
+//            } catch (NumberFormatException nfe) {
+//                error(ctx, "NFE" + key + " value["+CACHE.get(key)+"] is not an integer.");
+//            }
+//        } else if ("DECR".equals(cmd)) {
+//            String key = args[4];
+//            try {
+//                integer(ctx, CACHE.decr(key));
+//            } catch (NumberFormatException nfe) {
+//                error(ctx, "NFE" + key + " value["+CACHE.get(key)+"] is not an integer.");
+//            }
+//        } else {
+//            simpleString(ctx, OK);
+//        }
+
+    }
+
+    private void replyContext(ChannelHandlerContext ctx, Reply<?> reply) {
+        switch (reply.type) {
+            case INT:
+                integer(ctx, (int) reply.value);
+                break;
+            case SIMPLE_STRING:
+                simpleString(ctx, (String) reply.value);
+                break;
+            case BULK_STRING:
+                bulkString(ctx, (String) reply.value);
+                break;
+            case ARRAY:
+                array(ctx, (String[]) reply.value);
+                break;
+            case ERROR:
+                error(ctx, (String) reply.value);
+                break;
+            default:
+                simpleString(ctx, (String) reply.value);
+                break;
+        }
     }
 
     private void array(ChannelHandlerContext ctx, String[] array) {
