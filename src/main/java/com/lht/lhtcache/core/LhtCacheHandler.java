@@ -30,9 +30,14 @@ public class LhtCacheHandler extends SimpleChannelInboundHandler<String> {
 
         Command command = Commands.get(cmd);
         if (command != null) {
-            Reply<?> reply = command.exec(CACHE, args);
-            log.info("CMD[" + cmd + "] => " + reply.type + " => " + reply.value);
-            replyContext(ctx, reply);
+            try {
+                Reply<?> reply = command.exec(CACHE, args);
+                log.info("CMD[" + cmd + "] => " + reply.type + " => " + reply.value);
+                replyContext(ctx, reply);
+            }catch (Exception e){
+                Reply<String> error = Reply.error("ERR exception with msg: '" + e.getMessage() + "'");
+                replyContext(ctx, error);
+            }
         }else {
             Reply<String> error = Reply.error("ERR unsupported command '" + cmd + "'");
             replyContext(ctx, error);

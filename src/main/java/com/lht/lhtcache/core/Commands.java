@@ -52,11 +52,14 @@ public class Commands {
         register(new SremCommand());
         register(new ScardCommand());
 
-
-
-
-
         // hash
+        register(new HgetallCommand());
+        register(new HdelCommand());
+        register(new HexistsCommand());
+        register(new HlenCommand());
+        register(new HmgetCommand());
+        register(new HgetCommand());
+        register(new HsetCommand());
 
         // zset
 

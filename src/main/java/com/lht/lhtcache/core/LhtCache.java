@@ -182,6 +182,11 @@ public class LhtCache {
 
     }
 
+    // ========================== 2. List End =====================
+
+
+    // ========================== 3. Set =====================
+
     public int sadd(String key, String[] vals) {
         CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
         if(entry == null) {
@@ -205,11 +210,9 @@ public class LhtCache {
     }
 
     public int scard(String key) {
-
         CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
         if (entry == null) return 0;
         LinkedHashSet<String> exist = entry.getValue();
-        if (exist == null) return 0;
         return exist.size();
 
     }
@@ -218,22 +221,17 @@ public class LhtCache {
         CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
         if (entry == null) return 0;
         LinkedHashSet<String> exist = entry.getValue();
-        if (exist == null) return 0;
         return exist.contains(val) ? 1 : 0;
     }
 
     public int srem(String key, String[] vals) {
-
-
         CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
         if (entry == null) return 0;
         LinkedHashSet<String> exist = entry.getValue();
-        if (exist == null) return 0;
-        return vals == null ? 0 : (int) Arrays.stream(vals).map(exist::remove).filter(Objects::nonNull).count();
+        return vals == null ? 0 : (int) Arrays.stream(vals).map(exist::remove).filter(s -> s).count();
     }
 
     public String[] spop(String key, int count) {
-
         CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
         if (entry == null) return null;
         LinkedHashSet<String> exist = entry.getValue();
@@ -252,8 +250,70 @@ public class LhtCache {
         return ret;
 
     }
+    // ========================== 3. Set End =====================
 
-    // ========================== 2. List End =====================
+    // ========================== 4. Hash =====================
+    public int hset(String key,String[] keys, String[] values) {
+        if(keys==null||keys.length==0) return 0;
+        if(values==null||values.length==0) return 0;
+        if (keys.length!= values.length) return 0;
+        CacheEntry<HashMap<String,String>> entry = (CacheEntry<HashMap<String,String>>) map.get(key);
+        if(entry == null) {
+            entry = new CacheEntry<>(new HashMap<String,String>());
+            this.map.put(key, entry);
+        }
+        HashMap<String,String> exist = entry.getValue();
+        for(int i = 0; i < keys.length; i++) {
+            exist.put(keys[i], values[i]);
+        }
+        return keys.length;
+    }
+
+    public String hget(String key, String val) {
+        CacheEntry<HashMap<String,String>> entry = (CacheEntry<HashMap<String,String>>) map.get(key);
+        if (entry == null) return null;
+        HashMap<String,String> exist = entry.getValue();
+        return exist.get(val);
+    }
+
+    public String[] hgetall(String key) {
+        CacheEntry<HashMap<String,String>> entry = (CacheEntry<HashMap<String,String>>) map.get(key);
+        if (entry == null) return null;
+        HashMap<String,String> exist = entry.getValue();
+        return exist.entrySet().stream()
+                .flatMap(e->Stream.of(e.getKey(),e.getValue())).toArray(String[]::new);
+    }
+
+    public String[] hmget(String key, String[] vals) {
+        CacheEntry<HashMap<String,String>> entry = (CacheEntry<HashMap<String,String>>) map.get(key);
+        if (entry == null) return null;
+        HashMap<String,String> exist = entry.getValue();
+        return vals == null ? new String[0] : Stream.of(vals).map(exist::get).toArray(String[]::new);
+    }
+
+    public int hlen(String key) {
+
+        CacheEntry<HashMap<String,String>> entry = (CacheEntry<HashMap<String,String>>) map.get(key);
+        if (entry == null) return 0;
+        HashMap<String,String> exist = entry.getValue();
+        return exist.size();
+
+    }
+
+    public int hexists(String key, String val) {
+        CacheEntry<HashMap<String,String>> entry = (CacheEntry<HashMap<String,String>>) map.get(key);
+        if (entry == null) return 0;
+        HashMap<String,String> exist = entry.getValue();
+        return exist.containsKey(val) ? 1 : 0;
+    }
+
+    public int hdel(String key, String[] keys) {
+        CacheEntry<HashMap<String,String>> entry = (CacheEntry<HashMap<String,String>>) map.get(key);
+        if (entry == null) return 0;
+        HashMap<String,String> exist = entry.getValue();
+        return keys == null ? 0 : (int) Arrays.stream(keys).map(exist::remove).filter(Objects::nonNull).count();
+    }
+    // ========================== 4. Hash End =====================
 
     @Data
     @AllArgsConstructor
