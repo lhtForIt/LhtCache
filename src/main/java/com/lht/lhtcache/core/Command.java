@@ -21,6 +21,10 @@ public interface Command {
         return args[6];
     }
 
+    default String getMax(String[] args){
+        return args[8];
+    }
+
     default String[] getParams(String[] args) {
         int len = (args.length - 3) / 2;
         String[] keys = new String[len];

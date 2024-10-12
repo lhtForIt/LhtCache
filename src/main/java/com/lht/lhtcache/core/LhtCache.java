@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -210,11 +211,7 @@ public class LhtCache {
     }
 
     public int scard(String key) {
-        CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
-        if (entry == null) return 0;
-        LinkedHashSet<String> exist = entry.getValue();
-        return exist.size();
-
+        return zcard(key);
     }
 
     public int sismember(String key, String val) {
@@ -313,13 +310,83 @@ public class LhtCache {
         HashMap<String,String> exist = entry.getValue();
         return keys == null ? 0 : (int) Arrays.stream(keys).map(exist::remove).filter(Objects::nonNull).count();
     }
+
     // ========================== 4. Hash End =====================
+
+    // ========================== 5. ZSet =====================
+
+    public int zadd(String key, String[] vals, double[] scores) {
+        CacheEntry<LinkedHashSet<ZSetEntry>> entry = (CacheEntry<LinkedHashSet<ZSetEntry>>) map.get(key);
+        if(entry == null) {
+            entry = new CacheEntry<>(new LinkedHashSet<>());
+            this.map.put(key, entry);
+        }
+        LinkedHashSet<ZSetEntry> exist = entry.getValue();
+        for(int i = 0; i < vals.length; i++) {
+            exist.add(new ZSetEntry(scores[i],vals[i]));
+        }
+        return vals.length;
+    }
+
+    //用泛型屏蔽具体类型，这里其实和里面什么类型无关了
+    public int zcard(String key) {
+        CacheEntry<?> entry = map.get(key);
+        if (entry == null) return 0;
+        LinkedHashSet<?> exist = (LinkedHashSet<?>) entry.getValue();
+        return exist.size();
+    }
+
+    public int zcount(String key, double min, double max) {
+        CacheEntry<?> entry = map.get(key);
+        if (entry == null) return 0;
+        LinkedHashSet<ZSetEntry> exist = (LinkedHashSet<ZSetEntry>) entry.getValue();
+        return (int) exist.stream().filter(d -> d.getScore() >= min && d.getScore() <= max).count();
+    }
+
+    public String zscore(String key, String val) {
+        CacheEntry<?> entry = map.get(key);
+        if (entry == null) return "0";
+        LinkedHashSet<ZSetEntry> exist = (LinkedHashSet<ZSetEntry>) entry.getValue();
+        return exist.stream().filter(d -> d.getVal().equals(val)).map(ZSetEntry::getScore).findFirst().orElse(0d) + "";
+    }
+
+    public Integer zrank(String key, String val) {
+        CacheEntry<?> entry = map.get(key);
+        if (entry == null) return null;
+        LinkedHashSet<ZSetEntry> exist = (LinkedHashSet<ZSetEntry>) entry.getValue();
+        //这种需要排序，时间复杂度O(nlogn)
+//        List<String> sortVals = exist.stream().sorted(Comparator.comparingDouble(ZSetEntry::getScore)).map(ZSetEntry::getVal).collect(Collectors.toList());
+//        return sortVals.indexOf(val);
+        //这种不需要排序，首先找到元素，然后遍历整个集合看比他小的元素有几个，那么它就是排第几的，时间复杂度是O(n)
+        double zscore = Double.parseDouble(zscore(key, val));
+        if(zscore == 0d) return null;
+        return (int) exist.stream().filter(d -> d.getScore() < zscore).count();
+
+    }
+
+    public int zrem(String key, String[] vals) {
+        CacheEntry<?> entry = map.get(key);
+        if (entry == null) return 0;
+        LinkedHashSet<ZSetEntry> exist = (LinkedHashSet<ZSetEntry>) entry.getValue();
+        List<String> vals1 = List.of(vals);
+        return vals == null ? 0 : (int) exist.stream().filter(d -> vals1.contains(d.getVal())).map(exist::remove).filter(s -> s).count();
+    }
+
+    // ========================== 5. ZSet End =====================
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class CacheEntry<T> {
         private T value;
+    }
+
+
+    @Data
+    @AllArgsConstructor
+    public static class ZSetEntry{
+        private double score;
+        private String val;
     }
 
 }
