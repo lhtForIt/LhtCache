@@ -182,6 +182,77 @@ public class LhtCache {
 
     }
 
+    public int sadd(String key, String[] vals) {
+        CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
+        if(entry == null) {
+            entry = new CacheEntry<>(new LinkedHashSet<>());
+            this.map.put(key, entry);
+        }
+        LinkedHashSet<String> exist = entry.getValue();
+        exist.addAll(List.of(vals));
+        return vals.length;
+    }
+
+
+    public String[] smembers(String key) {
+        CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
+        if(entry == null) {
+            entry = new CacheEntry<>(new LinkedHashSet<>());
+            this.map.put(key, entry);
+        }
+        LinkedHashSet<String> exist = entry.getValue();
+        return exist.toArray(new String[0]);
+    }
+
+    public int scard(String key) {
+
+        CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
+        if (entry == null) return 0;
+        LinkedHashSet<String> exist = entry.getValue();
+        if (exist == null) return 0;
+        return exist.size();
+
+    }
+
+    public int sismember(String key, String val) {
+        CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
+        if (entry == null) return 0;
+        LinkedHashSet<String> exist = entry.getValue();
+        if (exist == null) return 0;
+        return exist.contains(val) ? 1 : 0;
+    }
+
+    public int srem(String key, String[] vals) {
+
+
+        CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
+        if (entry == null) return 0;
+        LinkedHashSet<String> exist = entry.getValue();
+        if (exist == null) return 0;
+        return vals == null ? 0 : (int) Arrays.stream(vals).map(exist::remove).filter(Objects::nonNull).count();
+    }
+
+    public String[] spop(String key, int count) {
+
+        CacheEntry<LinkedHashSet<String>> entry = (CacheEntry<LinkedHashSet<String>>) map.get(key);
+        if (entry == null) return null;
+        LinkedHashSet<String> exist = entry.getValue();
+        if (exist == null || exist.size()==0 ) return null;
+
+        int len = Math.min(count, exist.size());
+        String[] ret= new String[len];
+        Random r = new Random();
+        int index = 0;
+        while (index < len) {
+            // 将set转成数组，并随机取一个元素删除
+            String obj = exist.toArray(new String[0])[r.nextInt(exist.size())];
+            exist.remove(obj);
+            ret[index++] = obj;
+        }
+        return ret;
+
+    }
+
     // ========================== 2. List End =====================
 
     @Data
